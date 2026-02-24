@@ -37,7 +37,7 @@ Key features:
 - Live CashScript preview with inline error reporting.
 - Built-in wallet tools: generate/import, faucet links, auto balance refresh every 10 s.
 - One-click compilation (`cashc`) and deployment via an Express backend.
-- Six pre-built templates loadable from the header dropdown.
+- Ten pre-built templates loadable from the header dropdown, grouped into Standard and Classic Bitcoin categories.
 - Contract interaction panel for calling deployed contract functions.
 
 ---
@@ -132,6 +132,9 @@ Every contract must start with exactly one Trigger block at the top of the chain
 | **Time Passed** | `days` | Current MTP ≥ `unlockTime` constructor arg | `require(tx.time >= unlockTime)` |
 | **Multisig Signed** | `required`, `total` | M-of-N signature check | `require(checkMultiSig([s0,s1,...], [pk0,pk1,...]))` |
 | **Price Above** | `usdThreshold` | Requires oracle data signature (constructor arg) | `require(oraclePrice >= threshold)` |
+| **Hash Lock** | `expectedHash` (64-char hex) | Caller must reveal a secret whose `hash256` matches | `require(hash256(preimage) == expectedHash)` |
+
+> **Hash Lock note**: When this block is present the compiler automatically prepends `bytes preimage` to the function signature. The caller must supply the preimage when spending the contract. Use `hash256(secret)` (in any BCH tool) to pre-compute the `expectedHash` value at deploy time. This is the foundational pattern behind HTLCs, Lightning channels, and atomic swaps.
 
 > **Time Passed note**: The `unlockTime` constructor arg must be an **absolute Unix timestamp** (seconds since epoch), not a duration. Example: `Math.floor(Date.now() / 1000) + 90 * 86400` for 90 days from now. The deploy panel pre-fills a sensible default and the generated code includes a comment with the formula.
 
@@ -209,7 +212,9 @@ State blocks read from and write to the NFT commitment field on inputs/outputs. 
 
 ## Templates & Examples
 
-Load any template from the **Templates** dropdown in the header. Each loads a complete block graph and pre-fills constructor arg defaults.
+Load any template from the **Templates** dropdown in the header. Each loads a complete block graph and pre-fills constructor arg defaults. Templates are grouped into two categories.
+
+#### Standard
 
 | Template | Blocks | Description |
 |---|---|---|
@@ -220,7 +225,18 @@ Load any template from the **Templates** dropdown in the header. Each loads a co
 | **Escrow Between Two Parties** | MULTISIG_SIGNED (2-of-2) → SEND_BCH | Funds release only when both parties sign. |
 | **Recurring Salary Payment** | TIME_PASSED (30 d) → SPLIT_PERCENT 90% → SEND_BACK | Keeps 90 % of funds in contract each month (releasing 10 % to owner) with automatic re-lock. |
 
-All templates produce valid CashScript that compiles and deploys to chipnet without modification. Fill in the constructor args (recipient address, unlock time) in the Deploy panel before clicking Deploy.
+#### Classic Bitcoin
+
+These templates recreate the original Bitcoin scripting patterns that defined programmable money — now expressible on BCH in two to three blocks.
+
+| Template | Blocks | Historical origin |
+|---|---|---|
+| **Colored Coins Vault** | TOKEN_RECEIVED → CHECK_ADDRESS → SEND_TOKEN | Colored Coins protocol (2012) — tokens representing real-world assets on a UTXO chain. On BCH these are native CashTokens. |
+| **Namecoin Name Registry** | BCH_RECEIVED → STORE_IN_NFT → SEND_BACK | Namecoin (2011) — the first Bitcoin sidechain, introducing on-chain name→value storage. Here the NFT commitment acts as the persistent record; SEND_BACK keeps the contract alive indefinitely. |
+| **HTLC / Atomic Swap** | HASH_LOCK → SEND_BCH | Hash Time-Lock Contract — the primitive behind Lightning Network, cross-chain atomic swaps, and payment channels. The spender proves knowledge of a secret by revealing its preimage. |
+| **On-chain Counter** | BCH_RECEIVED → INCREMENT_COUNTER → SEND_BACK | Demonstrates NFT commitment as mutable on-chain storage: each spend increments the counter and re-locks the contract, creating a simple state machine. |
+
+All templates produce valid CashScript that compiles and deploys to chipnet without modification. Fill in the constructor args in the Deploy panel before clicking Deploy.
 
 ---
 
@@ -315,6 +331,7 @@ Constructor args are values baked into the contract at deploy time. They paramet
 | `unlockTime` | `int` | Absolute Unix timestamp (seconds). The deploy panel pre-fills **now + 90 days**. Adjust if your Trigger uses a different day count: `Math.floor(Date.now() / 1000) + <days> * 86400`. |
 | `tokenCategory` | `bytes` | The 32-byte token category ID as a hex string. Find it in your token-issuance transaction. |
 | `oraclePrice` | `int` | Current price in USD cents (oracle pattern — requires manual oracle integration for production). |
+| `expectedHash` | `bytes` | 32-byte hash256 of the secret preimage (64 hex chars). Compute with `hash256(secret)` in any BCH tool before deploying. |
 | `pk0`, `pk1`, … | `pubkey` | 33-byte compressed public keys (66 hex chars) for multisig contracts. |
 
 > **Deduplication**: If two blocks both need `recipientHash`, the compiler only generates one constructor arg. Both outputs will use the same address. To send to two different addresses, use hardcoded hex in the block fields instead.

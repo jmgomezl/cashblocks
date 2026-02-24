@@ -298,19 +298,36 @@ interface ExampleOption {
   state: object;
 }
 
-const examples: ExampleOption[] = [
-  { name: 'Vesting Contract', description: 'Release funds after 90 days', state: vestingExample },
-  { name: 'Recurring Payment', description: '10% monthly payments', state: recurringPaymentExample },
-  { name: 'Token Split', description: '70/30 token distribution', state: tokenSplitExample },
-  { name: 'Time-Locked Vault', description: '180-day timelock vault', state: timeLockedVaultExample },
-  { name: 'Escrow Between Two Parties', description: '2-of-2 multisig escrow', state: escrowExample },
-  { name: 'Recurring Salary Payment', description: 'Split salary with auto-relock', state: recurringSalaryExample },
-  // ── Classic Bitcoin contracts ──────────────────────────────────────────────
-  { name: '🎨 Colored Coins Vault', description: 'Token vault with authorized holder', state: coloredCoinsVaultExample },
-  { name: '📛 Namecoin Name Registry', description: 'On-chain name → NFT ownership', state: nameRegistryExample },
-  { name: '⚡ HTLC / Atomic Swap', description: 'Hash-lock: the root of Lightning', state: htlcExample },
-  { name: '🔢 On-chain Counter', description: 'NFT as mutable on-chain state', state: onChainCounterExample },
+interface ExampleGroup {
+  label: string;
+  examples: ExampleOption[];
+}
+
+const exampleGroups: ExampleGroup[] = [
+  {
+    label: 'Standard',
+    examples: [
+      { name: 'Vesting Contract', description: 'Release funds after 90 days', state: vestingExample },
+      { name: 'Recurring Payment', description: '10% monthly payments', state: recurringPaymentExample },
+      { name: 'Token Split', description: '70/30 token distribution', state: tokenSplitExample },
+      { name: 'Time-Locked Vault', description: '180-day timelock vault', state: timeLockedVaultExample },
+      { name: 'Escrow Between Two Parties', description: '2-of-2 multisig escrow', state: escrowExample },
+      { name: 'Recurring Salary Payment', description: 'Split salary with auto-relock', state: recurringSalaryExample },
+    ],
+  },
+  {
+    label: 'Classic Bitcoin',
+    examples: [
+      { name: 'Colored Coins Vault', description: 'Token vault with authorized holder', state: coloredCoinsVaultExample },
+      { name: 'Namecoin Name Registry', description: 'On-chain name → NFT ownership', state: nameRegistryExample },
+      { name: 'HTLC / Atomic Swap', description: 'Hash-lock: the root of Lightning', state: htlcExample },
+      { name: 'On-chain Counter', description: 'NFT as mutable on-chain state', state: onChainCounterExample },
+    ],
+  },
 ];
+
+// Flat list for index-based lookup (used by onChange handler)
+const examples: ExampleOption[] = exampleGroups.flatMap((g) => g.examples);
 
 const emptyCompileResult: CompileResult = {
   source: '',
@@ -504,8 +521,15 @@ export default function App(): JSX.Element {
               }}
             >
               <option value="" disabled>Load template...</option>
-              {examples.map((ex, idx) => (
-                <option key={idx} value={idx}>{ex.name}</option>
+              {exampleGroups.map((group) => (
+                <optgroup key={group.label} label={group.label}>
+                  {group.examples.map((ex) => {
+                    const idx = examples.indexOf(ex);
+                    return (
+                      <option key={idx} value={idx}>{ex.name}</option>
+                    );
+                  })}
+                </optgroup>
               ))}
             </select>
           </div>
