@@ -4,3 +4,4 @@ dist-test/
 .env
 *.local
 /tmp/
+DEPLOY.local.md
