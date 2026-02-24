@@ -30,6 +30,7 @@ export const toolbox: Toolbox = {
         { kind: 'block', type: 'TIME_PASSED' },
         { kind: 'block', type: 'MULTISIG_SIGNED' },
         { kind: 'block', type: 'PRICE_ABOVE' },
+        { kind: 'block', type: 'HASH_LOCK' },
       ],
     },
     {

@@ -104,26 +104,24 @@ function collectConstructorArgs(nodes: BlockNode[]): ConstructorArg[] {
 }
 
 // Check if contract needs signature verification
-function needsSignature(nodes: BlockNode[]): { hasSig: boolean; hasMultisig: boolean; sigCount: number } {
+function needsSignature(nodes: BlockNode[]): { hasSig: boolean; hasMultisig: boolean; sigCount: number; hasHashLock: boolean } {
   let hasSig = false;
   let hasMultisig = false;
   let sigCount = 2;
+  let hasHashLock = false;
 
   for (const node of nodes) {
-    if (node.type === 'CHECK_ADDRESS') {
-      hasSig = true;
-    }
+    if (node.type === 'CHECK_ADDRESS') hasSig = true;
+    if (node.type === 'HASH_LOCK') hasHashLock = true;
     if (node.type === 'MULTISIG_SIGNED') {
       hasMultisig = true;
       sigCount = Number(node.params.required ?? 2n);
     }
     // Most contracts need sig verification for spending
-    if (node.category === 'action') {
-      hasSig = true;
-    }
+    if (node.category === 'action') hasSig = true;
   }
 
-  return { hasSig, hasMultisig, sigCount };
+  return { hasSig, hasMultisig, sigCount, hasHashLock };
 }
 
 // Generate constructor arguments string
@@ -293,10 +291,10 @@ export function compile(graph: BlockGraph): CompileResult {
     const constructorArgs = collectConstructorArgs(sortedNodes);
 
     // Determine signature requirements
-    const { hasSig, hasMultisig, sigCount } = needsSignature(sortedNodes);
+    const { hasSig, hasMultisig, sigCount, hasHashLock } = needsSignature(sortedNodes);
 
     // Generate function signature
-    const functionSig = getFunctionSignature(hasSig, hasMultisig, sigCount);
+    const functionSig = getFunctionSignature(hasSig, hasMultisig, sigCount, hasHashLock);
 
     // Generate constructor args string
     const constructorArgsStr = generateConstructorArgs(constructorArgs);

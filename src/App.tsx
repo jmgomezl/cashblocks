@@ -150,6 +150,120 @@ const escrowExample = {
   },
 };
 
+// ── Historical / Classic Bitcoin contracts ────────────────────────────────────
+
+// Colored Coins Vault: only the authorized holder can claim specific CashTokens
+const coloredCoinsVaultExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'TOKEN_RECEIVED',
+        id: 'trigger_ccv',
+        x: 60,
+        y: 60,
+        fields: { CATEGORY_HEX: '' },
+        next: {
+          block: {
+            type: 'CHECK_ADDRESS',
+            id: 'logic_ccv',
+            next: {
+              block: {
+                type: 'SEND_TOKEN',
+                id: 'action_ccv',
+                fields: { RECIPIENT_HASH: '', CATEGORY_HEX: '' },
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+
+// Namecoin-style Name Registry: owner stores name data in NFT commitment,
+// contract keeps itself alive so the record persists on-chain indefinitely.
+const nameRegistryExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'BCH_RECEIVED',
+        id: 'trigger_name',
+        x: 60,
+        y: 60,
+        fields: { MIN_AMOUNT: 1000 },
+        next: {
+          block: {
+            type: 'STORE_IN_NFT',
+            id: 'state_name',
+            fields: { KEY: 'name' },
+            next: {
+              block: {
+                type: 'SEND_BACK',
+                id: 'action_name',
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+
+// HTLC / Atomic Swap: the original Bitcoin smart contract pattern.
+// Claim funds by revealing the preimage of a hash — foundation of Lightning.
+const htlcExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'HASH_LOCK',
+        id: 'trigger_htlc',
+        x: 60,
+        y: 60,
+        fields: { EXPECTED_HASH: '' },
+        next: {
+          block: {
+            type: 'SEND_BCH',
+            id: 'action_htlc',
+            fields: { RECIPIENT_HASH: '' },
+          },
+        },
+      },
+    ],
+  },
+};
+
+// On-chain Counter: BCH triggers an NFT state machine that increments a counter
+// and sends the contract back to itself — demonstrating mutable on-chain state.
+const onChainCounterExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'BCH_RECEIVED',
+        id: 'trigger_ctr',
+        x: 60,
+        y: 60,
+        fields: { MIN_AMOUNT: 1000 },
+        next: {
+          block: {
+            type: 'INCREMENT_COUNTER',
+            id: 'state_ctr',
+            next: {
+              block: {
+                type: 'SEND_BACK',
+                id: 'action_ctr',
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+
 const recurringSalaryExample = {
   blocks: {
     languageVersion: 0,
@@ -191,6 +305,11 @@ const examples: ExampleOption[] = [
   { name: 'Time-Locked Vault', description: '180-day timelock vault', state: timeLockedVaultExample },
   { name: 'Escrow Between Two Parties', description: '2-of-2 multisig escrow', state: escrowExample },
   { name: 'Recurring Salary Payment', description: 'Split salary with auto-relock', state: recurringSalaryExample },
+  // ── Classic Bitcoin contracts ──────────────────────────────────────────────
+  { name: '🎨 Colored Coins Vault', description: 'Token vault with authorized holder', state: coloredCoinsVaultExample },
+  { name: '📛 Namecoin Name Registry', description: 'On-chain name → NFT ownership', state: nameRegistryExample },
+  { name: '⚡ HTLC / Atomic Swap', description: 'Hash-lock: the root of Lightning', state: htlcExample },
+  { name: '🔢 On-chain Counter', description: 'NFT as mutable on-chain state', state: onChainCounterExample },
 ];
 
 const emptyCompileResult: CompileResult = {

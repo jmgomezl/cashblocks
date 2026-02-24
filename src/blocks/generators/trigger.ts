@@ -48,6 +48,11 @@ export function generateTriggerNode(block: Blockly.Block): BlockNode | null {
       break;
     }
 
+    case 'HASH_LOCK': {
+      params.expectedHash = block.getFieldValue('EXPECTED_HASH') as string;
+      break;
+    }
+
     default:
       return null;
   }
@@ -69,5 +74,6 @@ export function isTriggerBlock(type: string): type is TriggerBlockType {
     'TIME_PASSED',
     'MULTISIG_SIGNED',
     'PRICE_ABOVE',
+    'HASH_LOCK',
   ].includes(type);
 }

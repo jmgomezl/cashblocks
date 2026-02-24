@@ -7,7 +7,8 @@ export type TriggerBlockType =
   | 'TOKEN_RECEIVED'
   | 'TIME_PASSED'
   | 'MULTISIG_SIGNED'
-  | 'PRICE_ABOVE';
+  | 'PRICE_ABOVE'
+  | 'HASH_LOCK';
 
 // Logic block types
 export type LogicBlockType =
@@ -46,6 +47,9 @@ export interface BlockParams {
   required?: bigint;
   total?: bigint;
   usdThreshold?: bigint;
+
+  // Hash lock params
+  expectedHash?: string;
 
   // Logic params
   operator?: ComparisonOperator;

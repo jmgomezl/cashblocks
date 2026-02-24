@@ -80,6 +80,26 @@ function triggerTemplate(type: BlockType, params: BlockParams): TemplateResult {
       };
     }
 
+    case 'HASH_LOCK': {
+      const expectedHash = params.expectedHash;
+      if (expectedHash) {
+        return {
+          code: `        // TRIGGER: Hash lock — caller must reveal secret preimage
+        // preimage is passed as a function argument (see function signature)
+        require(hash256(preimage) == 0x${expectedHash});`,
+          constructorArgs: [],
+        };
+      }
+      return {
+        code: `        // TRIGGER: Hash lock — caller must reveal secret preimage
+        // preimage is passed as a function argument (see function signature)
+        require(hash256(preimage) == expectedHash);`,
+        constructorArgs: [
+          { name: 'expectedHash', type: 'bytes' },
+        ],
+      };
+    }
+
     default:
       return { code: '', constructorArgs: [] };
   }
@@ -292,13 +312,19 @@ export function getBlockTemplate(
 }
 
 // Get function signature based on blocks used
-export function getFunctionSignature(hasSig: boolean, hasMultisig: boolean, sigCount: number): string {
+export function getFunctionSignature(
+  hasSig: boolean,
+  hasMultisig: boolean,
+  sigCount: number,
+  hasHashLock = false,
+): string {
+  const preimage = hasHashLock ? 'bytes preimage, ' : '';
   if (hasMultisig) {
     const sigs = Array.from({ length: sigCount }, (_, i) => `sig s${i}`).join(', ');
-    return `function execute(${sigs})`;
+    return `function execute(${preimage}${sigs})`;
   }
   if (hasSig) {
-    return 'function execute(sig s, pubkey pk)';
+    return `function execute(${preimage}sig s, pubkey pk)`;
   }
-  return 'function execute(pubkey pk)';
+  return `function execute(${preimage}pubkey pk)`;
 }

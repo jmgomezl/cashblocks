@@ -140,12 +140,27 @@ const priceAboveBlock: BlockJson = {
   helpUrl: '',
 };
 
+// HASH_LOCK trigger block (HTLC / atomic swap)
+const hashLockBlock: BlockJson = {
+  type: 'HASH_LOCK',
+  message0: 'Hash lock %1 expected hash256 (hex) %2',
+  args0: [
+    { type: 'input_dummy' },
+    { type: 'field_input', name: 'EXPECTED_HASH', text: '' },
+  ],
+  nextStatement: 'Action',
+  colour: 120,
+  tooltip: 'Requires revealing a secret preimage whose hash256 matches — used for HTLC and atomic swaps',
+  helpUrl: '',
+};
+
 export const triggerBlocks: BlockJson[] = [
   bchReceivedBlock,
   tokenReceivedBlock,
   timePassedBlock,
   multisigSignedBlock,
   priceAboveBlock,
+  hashLockBlock,
 ];
 
 export function registerTriggerBlocks(): void {
