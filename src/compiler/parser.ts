@@ -16,6 +16,7 @@ const TRIGGER_TYPES: Set<string> = new Set([
   'TIME_PASSED',
   'MULTISIG_SIGNED',
   'PRICE_ABOVE',
+  'HASH_LOCK',
 ]);
 
 // Logic block types set
@@ -109,6 +110,8 @@ function extractParams(block: Blockly.Block): BlockParams {
   } else if (type === 'PRICE_ABOVE') {
     const threshold = block.getFieldValue('USD_THRESHOLD') as number;
     params.usdThreshold = BigInt(threshold);
+  } else if (type === 'HASH_LOCK') {
+    params.expectedHash = block.getFieldValue('EXPECTED_HASH') as string;
   }
 
   // Logic params
