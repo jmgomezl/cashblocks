@@ -11,6 +11,7 @@ import {
 } from './wallet.js';
 import { resolveNetworkParam } from './network.js';
 import { interactWithContract, validateInteractionRequest } from './interact.js';
+import { fundContract, validateFundRequest } from './fund.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -96,6 +97,26 @@ app.get('/api/balance', async (req, res) => {
   }
 
   res.json({ balance: result.balance });
+});
+
+app.post('/api/fund', async (req, res) => {
+  const fundRequest = validateFundRequest(req.body);
+
+  if (!fundRequest) {
+    res.status(400).json({ error: 'Invalid request: contractAddress, walletWif, walletCashAddress, amountSats required' });
+    return;
+  }
+
+  const { network: networkName } = req.body as { network?: string };
+  const network = resolveNetworkParam(networkName);
+  const result = await fundContract(fundRequest, network);
+
+  if (result.error) {
+    res.status(400).json({ error: result.error });
+    return;
+  }
+
+  res.json({ txid: result.txid });
 });
 
 app.post('/api/contract/interact', async (req, res) => {

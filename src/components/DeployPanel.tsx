@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { CompileResult, CashScriptArtifact, DeployedContract, ConstructorArg } from '../types';
 import { compileSource } from '../services/compile';
-import { deployContract } from '../services/network';
+import { deployContract, fundContractAddress } from '../services/network';
 import { createDeploymentRecord, saveDeployment } from '../services/deployments';
 
 interface WalletInfo {
@@ -20,13 +20,15 @@ interface DeployPanelProps {
   onDeploySuccess?: () => void;
 }
 
-type DeployState = 'idle' | 'compiling' | 'deploying' | 'deployed' | 'error';
+type DeployState = 'idle' | 'compiling' | 'deploying' | 'funding' | 'deployed' | 'error';
 
 export default function DeployPanel({ compileResult, wallet, network, networkLabel, onDeploySuccess }: DeployPanelProps): JSX.Element {
   const [deployState, setDeployState] = useState<DeployState>('idle');
   const [deployedContract, setDeployedContract] = useState<DeployedContract | null>(null);
+  const [fundingTxid, setFundingTxid] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [constructorValues, setConstructorValues] = useState<Record<string, string>>({});
+  const [fundAmount, setFundAmount] = useState<string>('10000');
 
   const hasValidContract = !compileResult.error && compileResult.source.length > 0;
   const hasWallet = wallet !== null;
@@ -81,6 +83,22 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
         network
       );
 
+      // Fund the contract if wallet has a private key and amount > 0
+      let txid = '';
+      const parsedAmount = BigInt(fundAmount || '0');
+      if (wallet?.privateKeyWif && parsedAmount > 0n) {
+        setDeployState('funding');
+        const fundResult = await fundContractAddress(
+          deployed.address,
+          wallet.privateKeyWif,
+          wallet.cashAddress,
+          parsedAmount,
+          network,
+        );
+        txid = fundResult.txid;
+        setFundingTxid(txid);
+      }
+
       const record = createDeploymentRecord({
         address: deployed.address,
         network,
@@ -101,6 +119,7 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
   const handleReset = useCallback(() => {
     setDeployState('idle');
     setDeployedContract(null);
+    setFundingTxid('');
     setErrorMessage('');
   }, []);
 
@@ -211,6 +230,33 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
         </div>
       )}
 
+      {/* Fund Amount Input */}
+      {deployState === 'idle' && canDeploy && (
+        <div style={{ fontSize: '11px' }}>
+          <label style={{ display: 'block', color: '#888', marginBottom: '4px' }}>
+            Fund amount (satoshis) — sent from your wallet to the contract
+          </label>
+          <input
+            type="number"
+            min="546"
+            value={fundAmount}
+            onChange={(e) => setFundAmount(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              backgroundColor: '#252538',
+              border: '1px solid #333',
+              borderRadius: '4px',
+              color: '#eaeaea',
+              fontSize: '11px',
+            }}
+          />
+          <div style={{ color: '#555', marginTop: '3px', fontSize: '10px' }}>
+            ≈ {Number(fundAmount || 0) / 1e8} BCH · fee ~1000 sat
+          </div>
+        </div>
+      )}
+
       {/* Status */}
       <div style={{ fontSize: '11px', color: '#888' }}>
         {deployState === 'idle' && (
@@ -222,7 +268,8 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
         )}
         {deployState === 'compiling' && 'Compiling CashScript...'}
         {deployState === 'deploying' && `Deploying to ${networkLabel}...`}
-        {deployState === 'deployed' && 'Contract deployed successfully!'}
+        {deployState === 'funding' && 'Sending funds to contract...'}
+        {deployState === 'deployed' && 'Contract deployed and funded!'}
         {deployState === 'error' && (
           <span style={{ color: '#f48771' }}>Error: {errorMessage}</span>
         )}
@@ -272,7 +319,7 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
           }}
         >
           <div style={{ color: '#00d4aa', fontWeight: 'bold' }}>
-            Contract Deployed!
+            {fundingTxid ? 'Contract Deployed & Funded!' : 'Contract Deployed!'}
           </div>
 
           {/* QR Code */}
@@ -299,6 +346,34 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
               {deployedContract.address}
             </div>
           </div>
+
+          {/* Funding Tx */}
+          {fundingTxid && (
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+                Funding Transaction
+              </div>
+              <div
+                style={{
+                  fontSize: '9px',
+                  fontFamily: 'monospace',
+                  wordBreak: 'break-all',
+                  color: '#f0b90b',
+                  backgroundColor: '#1a1a2e',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                onClick={() => navigator.clipboard.writeText(fundingTxid)}
+                title="Click to copy"
+              >
+                {fundingTxid}
+              </div>
+              <div style={{ fontSize: '10px', color: '#555', marginTop: '4px' }}>
+                Click txid to copy · {Number(fundAmount) / 1e8} BCH sent to contract
+              </div>
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
             <button

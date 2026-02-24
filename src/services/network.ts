@@ -37,6 +37,35 @@ export async function deployContract(
   };
 }
 
+// Fund a deployed contract address from the wallet
+export async function fundContractAddress(
+  contractAddress: string,
+  walletWif: string,
+  walletCashAddress: string,
+  amountSats: bigint,
+  network: string,
+): Promise<{ txid: string }> {
+  const response = await fetch('/api/fund', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contractAddress,
+      walletWif,
+      walletCashAddress,
+      amountSats: amountSats.toString(),
+      network,
+    }),
+  });
+
+  const data = await response.json() as { txid?: string; error?: string };
+
+  if (!response.ok || data.error) {
+    throw new Error(data.error || 'Funding failed');
+  }
+
+  return { txid: data.txid! };
+}
+
 // Get contract balance via backend API
 export async function getContractBalance(address: string, network: string): Promise<bigint> {
   const response = await fetch(`/api/balance?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
