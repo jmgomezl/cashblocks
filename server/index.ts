@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { compileCashScript, validateCompileRequest } from './compile.js';
 import { deployToNetwork, getBalance, validateDeployRequest } from './deploy.js';
 import {
@@ -10,8 +12,9 @@ import {
 import { resolveNetworkParam } from './network.js';
 import { interactWithContract, validateInteractionRequest } from './interact.js';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 // Middleware
 app.use(express.json());
@@ -184,6 +187,14 @@ app.post('/api/wallet/sign', async (req, res) => {
     const error = err as Error;
     res.status(400).json({ error: error.message });
   }
+});
+
+// Serve built frontend in production
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
+// SPA fallback — all non-API routes serve index.html
+app.get(/^(?!\/api).*/, (_req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Start server
