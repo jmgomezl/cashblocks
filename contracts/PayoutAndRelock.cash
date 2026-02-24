@@ -1,0 +1,49 @@
+pragma cashscript ^0.10.0;
+
+// Prior version accepted any user-supplied pubkey/signature and read tx.inputs[0],
+// so attackers could spend with their own key or by crafting transactions where
+// the contract UTXO was not the first input. It also allowed arbitrary numbers
+// of inputs/outputs, so funds could be siphoned via extra outputs. This version
+// hardens access control, enforces a single-input / two-output shape, uses the
+// active input index, and requires the payout + relock outputs to conserve value.
+
+contract PayoutAndRelock(
+    pubkey ownerPk,
+    bytes20 recipientPkh,
+    int minPayout,
+    int maxMinerFee
+) {
+    function execute(sig s) {
+        // Access control: only the pinned owner key may spend.
+        require(checkSig(s, ownerPk));
+
+        // Ensure recipient hash is the expected 20-byte hash160.
+        require(recipientPkh.length == 20);
+
+        // Strict transaction shape to avoid value leakage.
+        require(tx.inputs.length == 1);
+        require(this.activeInputIndex == 0);
+        require(tx.outputs.length == 2);
+
+        int inputValue = tx.inputs[this.activeInputIndex].value;
+
+        // Payout output must send to the fixed P2PKH recipient with minimum amount.
+        require(
+            tx.outputs[0].lockingBytecode ==
+                new LockingBytecodeP2PKH(recipientPkh)
+        );
+        require(tx.outputs[0].value >= minPayout);
+
+        // Output[1] must relock funds back into this covenant via P2SH32.
+        require(
+            tx.outputs[1].lockingBytecode ==
+                new LockingBytecodeP2SH32(hash256(this.activeBytecode))
+        );
+        require(tx.outputs[1].value >= 546);
+
+        // Fee protections: outputs must conserve value within maxMinerFee.
+        int totalOutputs = tx.outputs[0].value + tx.outputs[1].value;
+        require(totalOutputs <= inputValue);
+        require(totalOutputs >= inputValue - maxMinerFee);
+    }
+}

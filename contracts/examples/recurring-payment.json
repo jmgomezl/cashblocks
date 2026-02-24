@@ -1,0 +1,40 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "TIME_PASSED",
+        "id": "trigger_1",
+        "x": 50,
+        "y": 50,
+        "fields": {
+          "DAYS": 30
+        },
+        "next": {
+          "block": {
+            "type": "SPLIT_PERCENT",
+            "id": "action_1",
+            "fields": {
+              "PERCENT": 10
+            },
+            "next": {
+              "block": {
+                "type": "SEND_BCH",
+                "id": "action_2",
+                "fields": {
+                  "RECIPIENT_HASH": ""
+                },
+                "next": {
+                  "block": {
+                    "type": "SEND_BACK",
+                    "id": "action_3"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

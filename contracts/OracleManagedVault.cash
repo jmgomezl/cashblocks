@@ -1,0 +1,61 @@
+pragma cashscript ^0.10.0;
+
+// Previous versions accepted an `int oraclePrice` constructor parameter and
+// compared it directly (`require(oraclePrice >= X)`). That approach is broken
+// because the "oracle" value is fixed at deployment time and can never be
+// updated, so anyone can spend the contract long after prices moved. The
+// code below replaces that insecure constant with an authenticated oracle
+// feed: a trusted oracle signs the latest price, timestamp, and feedId, and
+// the contract verifies that signature plus freshness requirements.
+
+contract OracleManagedVault(
+    pubkey ownerPubKey,
+    pubkey oraclePubKey,
+    int minPrice,
+    int freshnessWindow,
+    int maxMinerFee
+) {
+    function unlock(
+        sig ownerSig,
+        int price,
+        int timestamp,
+        bytes32 feedId,
+        sig oracleSig
+    ) {
+        // Domain separation tag ensures signatures are scoped to this oracle format.
+        bytes domainTag = 0x424348315f4f5241434c455f5631; // "BCH1_ORACLE_V1"
+
+        // Construct canonical oracle message: domain || feedId || hash(priceBytes) || hash(timeBytes)
+        bytes priceBytes = bytes8(price);
+        bytes timeBytes = bytes8(timestamp);
+        bytes32 priceDigest = hash256(priceBytes);
+        bytes32 timeDigest = hash256(timeBytes);
+        bytes messagePreimage = domainTag + feedId + priceDigest + timeDigest;
+
+        // Require a valid oracle signature over the canonical message.
+        require(checkDataSig(oracleSig, messagePreimage, oraclePubKey));
+
+        // Enforce oracle reported price meets covenants.
+        require(price >= minPrice);
+
+        // Freshness guarantees: tx.time must lag timestamp by >=0 and <= freshnessWindow seconds.
+        require(tx.time >= timestamp);
+        require(tx.time <= timestamp + freshnessWindow);
+
+        // Restrict spend authority to owner signature to prevent arbitrary use.
+        require(checkSig(ownerSig, ownerPubKey));
+
+        // Covenant: output[0] must send funds back to this contract.
+        require(
+            tx.outputs[0].lockingBytecode ==
+                new LockingBytecodeP2SH32(hash256(this.activeBytecode))
+        );
+
+        // Miner fee control: ensure value drop does not exceed maxMinerFee.
+        int inputValue = tx.inputs[this.activeInputIndex].value;
+        int outputValue = tx.outputs[0].value;
+        int minerFee = inputValue - outputValue;
+        require(minerFee >= 0);
+        require(minerFee <= maxMinerFee);
+    }
+}

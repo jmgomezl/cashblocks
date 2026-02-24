@@ -1,0 +1,38 @@
+{
+  "name": "cashblocks",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"tsx watch server/index.ts\"",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "build:oracle-test": "mkdir -p dist-test && esbuild test/contract-oracle.test.ts --platform=node --format=esm --bundle --outfile=dist-test/contract-oracle.test.js",
+    "test:oracle": "npm run build:oracle-test && node dist-test/contract-oracle.test.js",
+    "build:payout-test": "mkdir -p dist-test && esbuild test/payout-contract.test.ts --platform=node --format=esm --bundle --outfile=dist-test/payout-contract.test.js",
+    "test:payout": "npm run build:payout-test && node dist-test/payout-contract.test.js"
+  },
+  "dependencies": {
+    "@bitauth/libauth": "^3.0.0",
+    "@monaco-editor/react": "^4.6.0",
+    "blockly": "^10.4.0",
+    "cashscript": "^0.10.0",
+    "express": "^4.18.2",
+    "qrcode.react": "^3.1.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@types/uuid": "^9.0.7",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "playwright": "^1.58.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}

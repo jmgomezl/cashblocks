@@ -1,0 +1,45 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "TOKEN_RECEIVED",
+        "id": "trigger_1",
+        "x": 50,
+        "y": 50,
+        "fields": {
+          "CATEGORY_HEX": ""
+        },
+        "next": {
+          "block": {
+            "type": "SPLIT_PERCENT",
+            "id": "action_1",
+            "fields": {
+              "PERCENT": 70
+            },
+            "next": {
+              "block": {
+                "type": "SEND_TOKEN",
+                "id": "action_2",
+                "fields": {
+                  "RECIPIENT_HASH": "",
+                  "CATEGORY_HEX": ""
+                },
+                "next": {
+                  "block": {
+                    "type": "SEND_TOKEN",
+                    "id": "action_3",
+                    "fields": {
+                      "RECIPIENT_HASH": "",
+                      "CATEGORY_HEX": ""
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

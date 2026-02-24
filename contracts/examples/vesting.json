@@ -1,0 +1,25 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "TIME_PASSED",
+        "id": "trigger_1",
+        "x": 50,
+        "y": 50,
+        "fields": {
+          "DAYS": 90
+        },
+        "next": {
+          "block": {
+            "type": "SEND_BCH",
+            "id": "action_1",
+            "fields": {
+              "RECIPIENT_HASH": ""
+            }
+          }
+        }
+      }
+    ]
+  }
+}
