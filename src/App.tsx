@@ -407,7 +407,7 @@ interface ExampleGroup {
 
 const exampleGroups: ExampleGroup[] = [
   {
-    label: '⚡ Quick Test',
+    label: 'Quick Test',
     examples: [
       { name: 'Instant Send', description: 'No timelock — deploy, fund & interact right away', state: quickInstantSendExample },
       { name: '2-min Timelock', description: 'Unlocks 2 minutes after deploy — fast chipnet test', state: quick2minLockExample },
