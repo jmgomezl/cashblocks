@@ -121,16 +121,25 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
         const source = selectedDeployment.artifact.source ?? '';
         const hasSendBack = source.includes('activeBytecode');
 
+        // Case 1: recipient stored as a constructor arg (value was not inlined)
         const recipientArg = selectedDeployment.constructorArgs.find(
           (a) => a.name === 'recipientHash'
         );
-        // constructorArgs may store the original user input (hex hash OR cashaddress).
-        // Normalize first so hashToCashAddress always receives a 40-char hex string.
         let recipientAddress: string | null = null;
         if (recipientArg?.value) {
           const normalized = normalizeRecipientHash(String(recipientArg.value));
           if (normalized.hex) {
             recipientAddress = hashToCashAddress(normalized.hex, network);
+          }
+        }
+        // Case 2: recipient was inlined in the source as a hex literal, e.g.
+        // new LockingBytecodeP2PKH(0xf28d8cee...) — constructorArgs will be []
+        if (!recipientAddress) {
+          const hashLiteralMatch = source.match(
+            /new LockingBytecodeP2PKH\(0x([0-9a-fA-F]{40})\)/
+          );
+          if (hashLiteralMatch) {
+            recipientAddress = hashToCashAddress(hashLiteralMatch[1], network);
           }
         }
 

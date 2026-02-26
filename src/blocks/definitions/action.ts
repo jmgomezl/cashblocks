@@ -26,7 +26,7 @@ interface BlockJson {
 // SEND_BCH action block
 const sendBchBlock: BlockJson = {
   type: 'SEND_BCH',
-  message0: 'Send BCH to %1 recipient address hash (hex) %2',
+  message0: 'Send BCH to %1 recipient (cashaddress or hex) %2',
   args0: [
     {
       type: 'input_dummy',
@@ -47,7 +47,7 @@ const sendBchBlock: BlockJson = {
 // SEND_TOKEN action block
 const sendTokenBlock: BlockJson = {
   type: 'SEND_TOKEN',
-  message0: 'Send Token to %1 recipient hash (hex) %2 category ID (hex) %3',
+  message0: 'Send Token to %1 recipient (cashaddress or hex) %2 category ID (hex) %3',
   args0: [
     {
       type: 'input_dummy',
