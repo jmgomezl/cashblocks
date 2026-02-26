@@ -103,20 +103,47 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
         setStatus({ type: 'error', message: 'No UTXOs found for this contract. Fund it first.' });
       } else {
         setUtxos(fetched.map((u) => ({ txid: u.txid, vout: String(u.vout), satoshis: u.satoshis })));
-        // Auto-fill output: derive recipient from the contract's stored recipientHash
-        // (baked in at deploy time) so the address always matches the contract.
-        // Fall back to current wallet only if no recipientHash is stored.
+        // Auto-fill outputs from what the contract enforces at the script level.
+        //
+        // Detection uses the stored artifact source:
+        //   - `recipientHash` constructor arg → P2PKH SEND_BCH output
+        //   - `activeBytecode` in source     → SEND_BACK output (contract self-send)
+        //   - SPLIT_PERCENT pattern          → two outputs; percent extracted from source
+        //   - Neither                        → TIME_LOCK_OUTPUT / unknown; wallet fallback
         const totalSats = fetched.reduce((sum, u) => sum + Number(u.satoshis), 0);
         const feeNum = Number(fee) || 800;
-        const sendAmount = Math.max(546, totalSats - feeNum);
+        const spendable = Math.max(0, totalSats - feeNum);
+
+        const source = selectedDeployment.artifact.source ?? '';
+        const hasSendBack = source.includes('activeBytecode');
+
         const recipientArg = selectedDeployment.constructorArgs.find(
           (a) => a.name === 'recipientHash'
         );
         const recipientAddress = recipientArg?.value
           ? hashToCashAddress(String(recipientArg.value), network)
-          : (wallet?.cashAddress ?? null);
-        if (recipientAddress) {
-          setOutputs([{ to: recipientAddress, amount: String(sendAmount) }]);
+          : null;
+
+        if (recipientAddress && hasSendBack) {
+          // SPLIT_PERCENT + SEND_BCH + SEND_BACK: two outputs
+          // Extract split percent from source (e.g. "totalValue * 10 / 100")
+          const percentMatch = source.match(/totalValue \* (\d+) \/ 100/);
+          const percent = percentMatch ? Number(percentMatch[1]) : 50;
+          const out0 = Math.max(546, Math.floor(spendable * percent / 100));
+          const out1 = Math.max(546, spendable - out0);
+          setOutputs([
+            { to: recipientAddress, amount: String(out0) },
+            { to: selectedDeployment.address, amount: String(out1) },
+          ]);
+        } else if (recipientAddress) {
+          // SEND_BCH only: one output to the baked-in recipient
+          setOutputs([{ to: recipientAddress, amount: String(Math.max(546, spendable)) }]);
+        } else if (hasSendBack) {
+          // SEND_BACK only (Name Registry, Counter): output back to the contract itself
+          setOutputs([{ to: selectedDeployment.address, amount: String(Math.max(546, spendable)) }]);
+        } else {
+          // TIME_LOCK_OUTPUT or unknown: fall back to connected wallet
+          setOutputs([{ to: wallet?.cashAddress ?? '', amount: String(Math.max(546, spendable)) }]);
         }
         setStatus({ type: 'idle' });
       }
