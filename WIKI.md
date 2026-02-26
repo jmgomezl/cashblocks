@@ -115,7 +115,17 @@ Every change triggers an immediate recompile — the CashScript preview updates 
 
 ### Interact Panel
 
-Switch to the **Interact** tab (next to Deploy) to call functions on previously deployed contracts. Select a contract from the list, provide function arguments, and submit. The backend signs and broadcasts the transaction using the loaded wallet.
+Switch to the **Interact** tab (next to Deploy) to call functions on previously deployed contracts.
+
+1. **Select a contract** from the dropdown — shows all deployments for the current network.
+2. **Select a function** — the ABI is read from the stored artifact. Arguments are shown automatically.
+   - `sig` arguments are marked "auto-signed by wallet" and require no input.
+   - `pubkey` arguments are pre-filled from the connected wallet's public key.
+3. **Fetch from chain** — queries the contract address for live UTXOs and auto-populates:
+   - UTXOs: all unspent outputs at the contract address.
+   - Outputs: the recipient address is resolved from the contract type. SEND_BCH contracts look for the recipient in constructor args first, then fall back to extracting it from an inlined `LockingBytecodeP2PKH(0x...)` literal in the source. SPLIT_PERCENT populates two outputs. SEND_BACK routes to the contract itself.
+4. **Fee**: default is 1 000 satoshis. Increase if the transaction is rejected for "min relay fee not met" (larger transactions with multiple inputs may require more).
+5. **Interact** broadcasts the signed transaction. A confirmed transaction ID is shown on success.
 
 ---
 
@@ -172,7 +182,7 @@ This produces:
 ```cashscript
 if (tx.inputs[0].value > 50000) {
     require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipientHash));
-    require(tx.outputs[0].value >= tx.inputs[0].value - 1000);
+    require(tx.outputs[0].value >= tx.inputs[0].value - 2000);
 } else {
     require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2SH32(this.activeBytecode));
 }
@@ -186,7 +196,7 @@ Action blocks enforce specific spending outputs. Each action block corresponds t
 
 | Block | Fields | What it enforces |
 |---|---|---|
-| **Send BCH** | `recipientHash` (optional) | Output locking bytecode = P2PKH to recipient; value ≥ input − 1000 sat fee |
+| **Send BCH** | `recipientHash` (optional) | Output locking bytecode = P2PKH to recipient; value ≥ input − 2000 sat fee |
 | **Send Token** | `recipientHash`, `categoryHex` (both optional) | Output locking bytecode + token category match |
 | **Split Percent** | `percent` (1–99) | Two outputs with values at `percent`% and `(100 − percent)`% of the input minus fee |
 | **Time Lock Output** | `days` | Output value ≥ input − fee (sequence-number relative timelock placeholder) |
@@ -266,7 +276,7 @@ contract GeneratedContract(
 
         // ACTION: Send BCH to recipient
         require(tx.outputs[0].lockingBytecode == new LockingBytecodeP2PKH(recipientHash));
-        require(tx.outputs[0].value >= tx.inputs[0].value - 1000);
+        require(tx.outputs[0].value >= tx.inputs[0].value - 2000);
     }
 }
 ```
@@ -493,6 +503,8 @@ npm run test:payout   # Payout-and-relock covenant: owner sig, output counts, ma
 | Balance stuck at "…" or shows 0 unexpectedly | Chipnet Electrum node unreachable | Check internet connectivity. Chipnet nodes can be transiently offline. Wait 30 seconds and open/close the wallet panel to retry. |
 | Recurring payment contract: cashc type error on SEND_BACK | `LockingBytecodeP2SH32` received `bytes` instead of `bytes32` | Template correctly uses `new LockingBytecodeP2SH32(hash256(this.activeBytecode))`. `hash256` converts the variable-length redeem script to the required 32-byte hash. Re-load the template from the dropdown if you have a custom version. |
 | Interact panel shows no contracts | No deployments recorded for the current network | Switch to the network you deployed on (header dropdown) or deploy a new contract first. |
+| "min relay fee not met" on broadcast | Transaction size exceeds fee / byte floor | Increase the fee field in the Interact panel. A transaction with two contract inputs typically exceeds 800 bytes; 1 000 sat covers up to 1 000 bytes at 1 sat/byte. The upper limit is set by the contract's value covenant (`tx.inputs[0].value - 2000` for contracts deployed with the current template). |
+| Interact succeeds but funds go to wallet instead of intended recipient | The deployed contract was from before the auto-fill fix, or was a different deployment | Check the server logs for `[interact] outputs:`. If the "to" address is your wallet rather than the expected recipient, ensure you are selecting the correct contract deployment in the dropdown. |
 
 ---
 
