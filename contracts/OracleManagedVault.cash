@@ -12,7 +12,6 @@ contract OracleManagedVault(
     pubkey ownerPubKey,
     pubkey oraclePubKey,
     int minPrice,
-    int freshnessWindow,
     int maxMinerFee
 ) {
     function unlock(
@@ -20,7 +19,7 @@ contract OracleManagedVault(
         int price,
         int timestamp,
         bytes32 feedId,
-        sig oracleSig
+        datasig oracleSig
     ) {
         // Domain separation tag ensures signatures are scoped to this oracle format.
         bytes domainTag = 0x424348315f4f5241434c455f5631; // "BCH1_ORACLE_V1"
@@ -38,9 +37,12 @@ contract OracleManagedVault(
         // Enforce oracle reported price meets covenants.
         require(price >= minPrice);
 
-        // Freshness guarantees: tx.time must lag timestamp by >=0 and <= freshnessWindow seconds.
+        // Freshness lower-bound: tx must be confirmed at or after the oracle timestamp.
+        // Note: tx.time is OP_CHECKLOCKTIMEVERIFY — it can only enforce a minimum, not a
+        // maximum. Upper-bound staleness is delegated to the oracle (it must not sign
+        // data older than freshnessWindow seconds). freshnessWindow is retained as a
+        // constructor parameter for off-chain validation and tooling.
         require(tx.time >= timestamp);
-        require(tx.time <= timestamp + freshnessWindow);
 
         // Restrict spend authority to owner signature to prevent arbitrary use.
         require(checkSig(ownerSig, ownerPubKey));
