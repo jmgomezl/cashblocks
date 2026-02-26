@@ -238,9 +238,17 @@ app.post('/api/wallet/sign', async (req, res) => {
 
 // Serve built frontend in production
 const distPath = path.join(__dirname, '..', 'dist');
-app.use(express.static(distPath));
+// Hashed assets get long cache; index.html always re-fetched
+app.use(express.static(distPath, {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('index.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
+}));
 // SPA fallback — all non-API routes serve index.html
 app.get(/^(?!\/api).*/, (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

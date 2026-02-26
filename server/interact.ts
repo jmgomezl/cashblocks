@@ -100,6 +100,9 @@ export async function interactWithContract(
       tx.withHardcodedFee(BigInt(request.fee));
     }
 
+    console.log('[interact] constructorArgs:', JSON.stringify(request.constructorArgs, (_k, v) => typeof v === 'bigint' ? v.toString() + 'n' : v));
+    console.log('[interact] outputs:', JSON.stringify(request.outputs));
+
     request.outputs.forEach((output) => {
       tx.to(output.to, typeof output.amount === 'bigint' ? output.amount : BigInt(output.amount));
     });
@@ -109,6 +112,7 @@ export async function interactWithContract(
     return { txid };
   } catch (err) {
     const error = err as Error;
+    console.log('[interact] ERROR:', error.message);
     return { error: error.message };
   }
 }
