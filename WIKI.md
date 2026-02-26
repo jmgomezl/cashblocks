@@ -127,9 +127,63 @@ Switch to the **Interact** tab (next to Deploy) to call functions on previously 
 4. **Fee**: default is 1 000 satoshis. Increase if the transaction is rejected for "min relay fee not met" (larger transactions with multiple inputs may require more).
 5. **Interact** broadcasts the signed transaction. A confirmed transaction ID is shown on success.
 
+#### Output Routing Logic
+
+When "Fetch from chain" is clicked, the panel determines the recipient address automatically using the following decision tree:
+
+```mermaid
+flowchart TD
+    A["Fetch from chain"] --> B["GET /api/utxos\ncontract address"]
+    B --> C{UTXOs found?}
+    C -->|No| ERR["Error: Fund the contract first"]
+    C -->|Yes| D["Compute spendable\ntotal satoshis − fee"]
+    D --> E{recipientHash in\nconstructorArgs?}
+    E -->|Yes| F["normalizeRecipientHash\n+ hashToCashAddress"]
+    E -->|No| G{"LockingBytecodeP2PKH\n(0x…) in source?"}
+    G -->|Yes| H["Regex-extract 20-byte hash\nhashToCashAddress"]
+    H --> F
+    G -->|No| I{activeBytecode\nin source?}
+    F --> J{Also has\nactiveBytecode?}
+    J -->|Yes| K["SPLIT pattern\nOutput 0 → recipient\nOutput 1 → contract"]
+    J -->|No| L["SEND_BCH\nOutput → recipient"]
+    I -->|Yes| M["SEND_BACK\nOutput → contract address"]
+    I -->|No| N["Unknown pattern\nOutput → wallet address"]
+```
+
 ---
 
 ## Block Reference
+
+### Block Connection Model
+
+Blocks connect vertically in a strict ordering: exactly one Trigger at the top, followed by optional Logic blocks, then Action blocks. Logic value blocks (AND, OR, COMPARE_VALUE) connect horizontally into the CONDITION socket of an IF_ELSE block — they cannot be placed in the main vertical chain on their own.
+
+```mermaid
+graph TD
+    subgraph Chain["Main Block Chain (vertical)"]
+        T["TRIGGER\n(exactly one)"]
+        T --> L["LOGIC statement\n(optional)"]
+        L --> A["ACTION\n(one or more)"]
+        A --> S["STATE\n(optional)"]
+    end
+
+    subgraph ValueBlocks["Value Blocks (horizontal, into IF_ELSE only)"]
+        CV["COMPARE_VALUE"]
+        AND["AND"]
+        OR["OR"]
+    end
+
+    IF["IF_ELSE block\n(in main chain)"]
+    L --> IF
+    CV -->|CONDITION socket| IF
+    AND -->|CONDITION socket| IF
+    OR -->|CONDITION socket| IF
+    CV -->|A or B socket| AND
+    CV -->|A or B socket| OR
+
+    IF -->|THEN slot| A1["ACTION (then branch)"]
+    IF -->|ELSE slot| A2["ACTION (else branch)"]
+```
 
 ### Trigger Blocks
 
@@ -395,27 +449,20 @@ BCH1/
 
 The compiler is entirely **pure TypeScript** — no network calls, no DOM, no side effects. It can be unit-tested in isolation.
 
-```
-Blockly workspace
-       │
-       ▼ parser.ts
-   BlockGraph IR
-  (nodes + edges)
-       │
-       ▼ BlockGraphCompiler.ts
-  1. validateGraph()     — exactly one trigger, at least one action
-  2. sortNodes()         — DFS from trigger, topological order
-  3. collectConstructorArgs() — deduplicated arg list from all nodes
-  4. needsSignature()    — determines function signature (sig/multisig)
-  5. generateFunctionBody()   — maps each node to a CashScript snippet
-       │  ├─ Trigger/Action/State → getBlockTemplate()
-       │  └─ IF_ELSE → inline if/else with branch subtrees
-       │
-       ▼ templates.ts
-  CashScript snippets per block
-       │
-       ▼
-  Assembled .cash source string
+```mermaid
+flowchart TD
+    A["Blockly Workspace"] -->|"parser.ts"| B["BlockGraph IR\n(trigger + nodes + edges)"]
+    B --> C{validateGraph\none trigger, ≥1 action}
+    C -->|fail| ERR["Compile error\ndisplayed in UI"]
+    C -->|pass| D["sortNodes\nDFS topological order"]
+    D --> E["collectConstructorArgs\ndeduplicated list"]
+    E --> F["needsSignature\nsig / multisig / pubkey"]
+    F --> G{node type}
+    G -->|"Trigger / Action / State"| H["getBlockTemplate()\ntemplates.ts"]
+    G -->|IF_ELSE| I["extractConditionExpr()\nrecursive AND/OR/COMPARE"]
+    I --> J["if/else wrapper\n+ generateBranchCode()"]
+    H --> K[".cash source string"]
+    J --> K
 ```
 
 **IF_ELSE handling in detail:**
@@ -444,6 +491,57 @@ All blockchain-facing work runs on the Express server (port 3001) to avoid brows
 Network providers are cached per network in a `Map<Network, ElectrumNetworkProvider>`. Supported networks: `MAINNET`, `TESTNET3`, `TESTNET4`, `CHIPNET` (default).
 
 > **Deploy vs Fund**: Deploying a contract only derives its P2SH32 address — it does not broadcast a transaction. To fund the contract, send BCH (and/or tokens) to that address from your wallet. The contract becomes spendable once funded.
+
+#### Full Contract Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as CashBlocks UI
+    participant S as Express Server
+    participant BCH as BCH chipnet
+
+    rect rgb(30, 40, 60)
+        Note over U,BCH: Phase 1 — Build and Deploy
+        U->>UI: Drag blocks on canvas
+        UI->>UI: BlockGraphCompiler generates .cash source
+        U->>UI: Fill constructor args, click Deploy
+        UI->>S: POST /api/compile { source }
+        S->>S: Write /tmp/cb-uuid.cash, run cashc CLI
+        S-->>UI: { artifact }
+        UI->>S: POST /api/deploy { artifact, constructorArgs }
+        S->>S: new Contract(artifact, args, provider)
+        S-->>UI: { address }
+        UI-->>U: P2SH32 contract address + QR code
+    end
+
+    rect rgb(30, 50, 40)
+        Note over U,BCH: Phase 2 — Fund
+        U->>UI: Click Fund Contract
+        UI->>S: POST /api/fund { contractAddress, walletWif, amount }
+        S->>BCH: Broadcast P2PKH → P2SH32 funding tx
+        BCH-->>S: txid
+        S-->>UI: { txid }
+        UI-->>U: Contract funded
+    end
+
+    rect rgb(50, 30, 40)
+        Note over U,BCH: Phase 3 — Interact
+        U->>UI: Open Interact, click Fetch from chain
+        UI->>S: GET /api/utxos?address=…
+        S->>BCH: Query ElectrumX
+        BCH-->>S: UTXO list
+        S-->>UI: { utxos }
+        UI->>UI: Auto-fill outputs (routing decision tree)
+        U->>UI: Click Interact
+        UI->>S: POST /api/contract/interact { artifact, args, utxos, outputs, signerWif }
+        S->>S: Build tx, apply SignatureTemplate(wif)
+        S->>BCH: Broadcast signed tx
+        BCH-->>S: txid
+        S-->>UI: { txid }
+        UI-->>U: Transaction confirmed
+    end
+```
 
 ---
 

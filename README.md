@@ -112,26 +112,99 @@ cashblocks/
 └── contracts/examples/             # Pre-built workspace JSON templates
 ```
 
+### System Architecture
+
+```mermaid
+graph TD
+    subgraph Browser["Browser"]
+        A["Block Canvas\n(Blockly.js)"] -->|onChange| B["parser.ts\nBlockly → BlockGraph IR"]
+        B --> C["BlockGraphCompiler.ts\nBlockGraph → .cash source"]
+        C --> D["CodePreview\nLive CashScript display"]
+        C --> E["DeployPanel"]
+        G["WalletPanel"] -->|"GET /api/wallet/balance"| SRV
+        H["InteractionsPanel"] -->|"GET /api/utxos\nPOST /api/contract/interact"| SRV
+        E -->|"POST /api/compile\nPOST /api/deploy\nPOST /api/fund"| SRV
+    end
+
+    subgraph SRV["Express Server :3001"]
+        R["Router (index.ts)"] --> CP["compile.ts\ncashc CLI"]
+        R --> DP["deploy.ts\nCashScript SDK"]
+        R --> WP["wallet.ts\nKey operations"]
+        R --> IP["interact.ts\nSign + broadcast"]
+        R --> FP["fund.ts\nFunding tx"]
+    end
+
+    subgraph BCH["BCH Network"]
+        EX["chipnet ElectrumX"]
+        CH["Blockchain"]
+    end
+
+    DP -->|ElectrumNetworkProvider| EX
+    IP -->|broadcast tx| EX
+    FP -->|broadcast tx| EX
+    EX --> CH
+```
+
 ### Compiler Pipeline
 
-```
-Blockly workspace
-      |
-      v  parser.ts
-  BlockGraph IR (nodes + edges)
-      |
-      v  BlockGraphCompiler.ts
-  1. validateGraph()            — exactly one trigger, at least one action
-  2. sortNodes()                — DFS topological ordering
-  3. collectConstructorArgs()   — deduplicated constructor argument list
-  4. needsSignature()           — determines function signature variant
-  5. generateFunctionBody()     — maps each node to a CashScript snippet
-      |
-      v  templates.ts
-  Assembled .cash source string
+```mermaid
+flowchart TD
+    A["Blockly Workspace"] -->|"parser.ts"| B["BlockGraph IR\n(trigger + nodes + edges)"]
+    B --> C{validateGraph}
+    C -->|fail| ERR["Compile error\ndisplayed in UI"]
+    C -->|pass| D["sortNodes\nDFS topological order"]
+    D --> E["collectConstructorArgs\ndeduplicated arg list"]
+    E --> F["needsSignature\nfunction signature variant"]
+    F --> G["generateFunctionBody\nnode → CashScript snippet"]
+    G --> H["templates.ts\nper-block code"]
+    H --> I[".cash source string"]
+    I -->|"POST /api/compile"| J["cashc@0.10.0\nCLI compilation"]
+    J -->|"artifact JSON"| K["Artifact\n(bytecode + ABI)"]
 ```
 
 The compiler is entirely pure TypeScript: no network calls, no DOM access, no side effects. It can be tested in isolation without a running server.
+
+### Contract Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as CashBlocks UI
+    participant S as Express Server
+    participant BCH as BCH chipnet
+
+    U->>UI: Drag blocks on canvas
+    UI->>UI: BlockGraphCompiler generates .cash source
+    U->>UI: Click Deploy
+    UI->>S: POST /api/compile { source }
+    S->>S: Write temp .cash, run cashc CLI
+    S-->>UI: { artifact }
+    UI->>S: POST /api/deploy { artifact, constructorArgs }
+    S->>S: new Contract(artifact, args)
+    S-->>UI: { address }
+    UI-->>U: Contract address + QR code
+
+    U->>UI: Click Fund Contract
+    UI->>S: POST /api/fund { contractAddress, walletWif, amount }
+    S->>BCH: Broadcast P2PKH → P2SH32 funding tx
+    BCH-->>S: txid
+    S-->>UI: { txid }
+
+    U->>UI: Open Interact → Fetch from chain
+    UI->>S: GET /api/utxos?address=...
+    S->>BCH: Query ElectrumX
+    BCH-->>S: UTXOs
+    S-->>UI: { utxos }
+    UI->>UI: Auto-fill outputs from contract type
+
+    U->>UI: Click Interact
+    UI->>S: POST /api/contract/interact { artifact, args, utxos, outputs }
+    S->>S: Build tx, apply SignatureTemplate(wif)
+    S->>BCH: Broadcast signed tx
+    BCH-->>S: txid
+    S-->>UI: { txid }
+    UI-->>U: Transaction confirmed
+```
 
 ### Block Reference
 
