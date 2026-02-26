@@ -10,7 +10,11 @@ export function hashToCashAddress(hashHex: string, network: string): string | nu
     );
     const prefix = network === 'MAINNET' ? 'bitcoincash' : 'bchtest';
     const result = encodeCashAddress({ prefix, type: CashAddressType.p2pkh, payload });
-    return typeof result === 'string' ? result : null;
+    if (typeof result === 'string') return result;
+    if (typeof result === 'object' && result !== null && 'address' in result) {
+      return (result as { address: string }).address;
+    }
+    return null;
   } catch {
     return null;
   }
