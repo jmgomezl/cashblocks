@@ -55,11 +55,17 @@ function mapFunctionArgs(args: FunctionArg[], signerWif?: string): unknown[] {
     if (arg.type === 'int') {
       return typeof arg.value === 'bigint' ? arg.value : BigInt(arg.value ?? 0);
     }
-    if (arg.type === 'sig' && arg.value === 'wallet') {
+    // sig type is always signed by the wallet — value from the frontend is irrelevant
+    if (arg.type === 'sig') {
       if (!signerWif) {
         throw new Error('Signer WIF required for signature arguments');
       }
       return new SignatureTemplate(signerWif);
+    }
+    // pubkey: convert hex string to Uint8Array if needed
+    if (arg.type === 'pubkey' && typeof arg.value === 'string' && arg.value.length > 0) {
+      const hex = arg.value.replace(/^0x/, '');
+      return Uint8Array.from(hex.match(/.{2}/g)!.map((b) => parseInt(b, 16)));
     }
     return arg.value;
   });

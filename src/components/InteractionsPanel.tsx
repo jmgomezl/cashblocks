@@ -64,15 +64,19 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
     if (functionOptions.length > 0) {
       setSelectedFunction(functionOptions[0].name);
       const defaults: TextArgState = {};
-      functionOptions[0].inputs?.forEach((input: { name: string }) => {
-        defaults[input.name] = '';
+      functionOptions[0].inputs?.forEach((input: { name: string; type: string }) => {
+        if (input.type === 'pubkey' && wallet?.publicKeyHex) {
+          defaults[input.name] = wallet.publicKeyHex;
+        } else {
+          defaults[input.name] = '';
+        }
       });
       setArgValues(defaults);
     } else {
       setSelectedFunction('');
       setArgValues({});
     }
-  }, [selectedDeployment]);
+  }, [selectedDeployment, wallet?.publicKeyHex]);
 
   const currentFunction = useMemo(() => functionOptions.find((fn) => fn.name === selectedFunction) ?? null, [functionOptions, selectedFunction]);
 
@@ -247,8 +251,12 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
             setSelectedFunction(e.target.value);
             const fn = functionOptions.find((f) => f.name === e.target.value);
             const defaults: TextArgState = {};
-            fn?.inputs?.forEach((input: { name: string }) => {
-              defaults[input.name] = '';
+            fn?.inputs?.forEach((input: { name: string; type: string }) => {
+              if (input.type === 'pubkey' && wallet?.publicKeyHex) {
+                defaults[input.name] = wallet.publicKeyHex;
+              } else {
+                defaults[input.name] = '';
+              }
             });
             setArgValues(defaults);
           }}
@@ -271,27 +279,39 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
       {currentFunction?.inputs?.length ? (
         <div style={{ backgroundColor: '#252538', padding: '12px', borderRadius: '6px' }}>
           <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>Function Arguments</div>
-          {currentFunction.inputs.map((input: { name: string; type: string }) => (
-            <div key={input.name} style={{ marginBottom: '8px' }}>
-              <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '4px' }}>
-                {input.name} <span style={{ color: '#666' }}>({input.type})</span>
-              </label>
-              <input
-                type="text"
-                value={argValues[input.name] || ''}
-                onChange={(e) => handleArgChange(input.name, e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px',
-                  backgroundColor: '#1a1a2e',
-                  border: '1px solid #333',
-                  borderRadius: '4px',
-                  color: '#eaeaea',
-                  fontFamily: 'monospace',
-                }}
-              />
-            </div>
-          ))}
+          {currentFunction.inputs.map((input: { name: string; type: string }) => {
+            if (input.type === 'sig') {
+              return (
+                <div key={input.name} style={{ marginBottom: '8px' }}>
+                  <div style={{ fontSize: '11px', color: '#555' }}>
+                    <span style={{ color: '#666' }}>{input.name}</span> (sig) —{' '}
+                    <span style={{ color: '#00d4aa88' }}>auto-signed by wallet</span>
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div key={input.name} style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'block', fontSize: '11px', color: '#aaa', marginBottom: '4px' }}>
+                  {input.name} <span style={{ color: '#666' }}>({input.type})</span>
+                </label>
+                <input
+                  type="text"
+                  value={argValues[input.name] || ''}
+                  onChange={(e) => handleArgChange(input.name, e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    backgroundColor: '#1a1a2e',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    color: '#eaeaea',
+                    fontFamily: 'monospace',
+                  }}
+                />
+              </div>
+            );
+          })}
         </div>
       ) : null}
 
