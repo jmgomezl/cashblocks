@@ -164,7 +164,7 @@ function actionTemplate(type: BlockType, params: BlockParams, outputIndex: numbe
           return {
             code: `        // ACTION: Send BCH to recipient
         require(tx.outputs[${outputIndex}].lockingBytecode == new LockingBytecodeP2PKH(0x${normalized.hex}));
-        require(tx.outputs[${outputIndex}].value >= tx.inputs[0].value - 1000);`,
+        require(tx.outputs[${outputIndex}].value >= tx.inputs[0].value - 2000);`,
             constructorArgs: [],
           };
         }
@@ -172,7 +172,7 @@ function actionTemplate(type: BlockType, params: BlockParams, outputIndex: numbe
       return {
         code: `        // ACTION: Send BCH to recipient
         require(tx.outputs[${outputIndex}].lockingBytecode == new LockingBytecodeP2PKH(recipientHash));
-        require(tx.outputs[${outputIndex}].value >= tx.inputs[0].value - 1000);`,
+        require(tx.outputs[${outputIndex}].value >= tx.inputs[0].value - 2000);`,
         constructorArgs: [
           { name: 'recipientHash', type: 'bytes20' },
         ],
@@ -224,7 +224,7 @@ function actionTemplate(type: BlockType, params: BlockParams, outputIndex: numbe
       const secondOutputIndex = outputIndex + 1;
       return {
         code: `        // ACTION: Split ${percent}% / ${remaining}%
-        int totalValue = tx.inputs[0].value - 1000;
+        int totalValue = tx.inputs[0].value - 2000;
         int firstOutput = totalValue * ${percent.toString()} / 100;
         int secondOutput = totalValue - firstOutput;
         require(tx.outputs[${firstOutputIndex}].value >= firstOutput);
@@ -238,7 +238,7 @@ function actionTemplate(type: BlockType, params: BlockParams, outputIndex: numbe
       return {
         code: `        // ACTION: Time lock output for ${days} days
         // Using sequence number for relative timelock
-        require(tx.outputs[${outputIndex}].value >= tx.inputs[0].value - 1000);`,
+        require(tx.outputs[${outputIndex}].value >= tx.inputs[0].value - 2000);`,
         constructorArgs: [],
       };
     }

@@ -46,7 +46,7 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
   const [argValues, setArgValues] = useState<TextArgState>({});
   const [utxos, setUtxos] = useState<EditableUtxo[]>([{ txid: '', vout: '0', satoshis: '' }]);
   const [outputs, setOutputs] = useState<EditableOutput[]>([{ to: '', amount: '' }]);
-  const [fee, setFee] = useState<string>('800');
+  const [fee, setFee] = useState<string>('1000');
   const [fetchingUtxos, setFetchingUtxos] = useState<boolean>(false);
   const [status, setStatus] = useState<{ type: 'idle' | 'busy' | 'error' | 'success'; message?: string }>({ type: 'idle' });
   const [useWalletSigner, setUseWalletSigner] = useState<boolean>(true);
