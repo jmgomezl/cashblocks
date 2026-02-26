@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import type { StoredDeployment } from '../services/deployments';
 import type { ConstructorArg } from '../types';
 import { interactWithContract } from '../services/interaction';
+import { hashToCashAddress } from '../compiler/address';
 
 async function fetchContractUtxos(address: string, network: string): Promise<{ txid: string; vout: number; satoshis: string }[]> {
   const res = await fetch(`/api/utxos?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
@@ -102,12 +103,20 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
         setStatus({ type: 'error', message: 'No UTXOs found for this contract. Fund it first.' });
       } else {
         setUtxos(fetched.map((u) => ({ txid: u.txid, vout: String(u.vout), satoshis: u.satoshis })));
-        // Auto-fill output: send (total - fee) to wallet address
-        if (wallet?.cashAddress) {
-          const totalSats = fetched.reduce((sum, u) => sum + Number(u.satoshis), 0);
-          const feeNum = Number(fee) || 800;
-          const sendAmount = Math.max(546, totalSats - feeNum);
-          setOutputs([{ to: wallet.cashAddress, amount: String(sendAmount) }]);
+        // Auto-fill output: derive recipient from the contract's stored recipientHash
+        // (baked in at deploy time) so the address always matches the contract.
+        // Fall back to current wallet only if no recipientHash is stored.
+        const totalSats = fetched.reduce((sum, u) => sum + Number(u.satoshis), 0);
+        const feeNum = Number(fee) || 800;
+        const sendAmount = Math.max(546, totalSats - feeNum);
+        const recipientArg = selectedDeployment.constructorArgs.find(
+          (a) => a.name === 'recipientHash'
+        );
+        const recipientAddress = recipientArg?.value
+          ? hashToCashAddress(String(recipientArg.value), network)
+          : (wallet?.cashAddress ?? null);
+        if (recipientAddress) {
+          setOutputs([{ to: recipientAddress, amount: String(sendAmount) }]);
         }
         setStatus({ type: 'idle' });
       }

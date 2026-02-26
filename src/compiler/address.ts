@@ -1,4 +1,20 @@
-import { decodeCashAddress, CashAddressType } from '@bitauth/libauth';
+import { decodeCashAddress, encodeCashAddress, CashAddressType } from '@bitauth/libauth';
+
+// Convert a bytes20 hex hash to a P2PKH cashaddress for the given network
+export function hashToCashAddress(hashHex: string, network: string): string | null {
+  try {
+    const clean = hashHex.replace(/^0x/, '').toLowerCase();
+    if (clean.length !== 40) return null;
+    const payload = Uint8Array.from(
+      clean.match(/.{2}/g)!.map((b) => parseInt(b, 16))
+    );
+    const prefix = network === 'MAINNET' ? 'bitcoincash' : 'bchtest';
+    const result = encodeCashAddress({ prefix, type: CashAddressType.p2pkh, payload });
+    return typeof result === 'string' ? result : null;
+  } catch {
+    return null;
+  }
+}
 
 interface NormalizeResult {
   hex?: string;
