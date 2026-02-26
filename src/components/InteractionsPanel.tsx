@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import type { StoredDeployment } from '../services/deployments';
 import type { ConstructorArg } from '../types';
 import { interactWithContract } from '../services/interaction';
-import { hashToCashAddress } from '../compiler/address';
+import { hashToCashAddress, normalizeRecipientHash } from '../compiler/address';
 
 async function fetchContractUtxos(address: string, network: string): Promise<{ txid: string; vout: number; satoshis: string }[]> {
   const res = await fetch(`/api/utxos?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
@@ -124,9 +124,15 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
         const recipientArg = selectedDeployment.constructorArgs.find(
           (a) => a.name === 'recipientHash'
         );
-        const recipientAddress = recipientArg?.value
-          ? hashToCashAddress(String(recipientArg.value), network)
-          : null;
+        // constructorArgs may store the original user input (hex hash OR cashaddress).
+        // Normalize first so hashToCashAddress always receives a 40-char hex string.
+        let recipientAddress: string | null = null;
+        if (recipientArg?.value) {
+          const normalized = normalizeRecipientHash(String(recipientArg.value));
+          if (normalized.hex) {
+            recipientAddress = hashToCashAddress(normalized.hex, network);
+          }
+        }
 
         if (recipientAddress && hasSendBack) {
           // SPLIT_PERCENT + SEND_BCH + SEND_BACK: two outputs
