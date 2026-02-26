@@ -274,6 +274,47 @@ export default function WalletPanel({ network, networkLabel, onWalletChange }: W
             </div>
           </div>
 
+          {/* Public Key */}
+          <div>
+            <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>
+              Public Key (use as <code style={{ fontSize: '10px', color: '#00d4aa' }}>pk</code> in Interact)
+            </div>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+              <div
+                style={{
+                  flex: 1,
+                  fontSize: '10px',
+                  fontFamily: 'monospace',
+                  wordBreak: 'break-all',
+                  backgroundColor: '#252538',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  color: '#aaa',
+                }}
+                onClick={() => copyToClipboard(wallet.publicKeyHex)}
+                title="Click to copy"
+              >
+                {wallet.publicKeyHex}
+              </div>
+              <button
+                onClick={() => copyToClipboard(wallet.publicKeyHex)}
+                style={{
+                  padding: '0 10px',
+                  backgroundColor: '#333',
+                  color: '#eaeaea',
+                  border: '1px solid #444',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Copy
+              </button>
+            </div>
+          </div>
+
           {/* Balance */}
           <div
             style={{
