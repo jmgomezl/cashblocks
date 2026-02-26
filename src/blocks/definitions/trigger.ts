@@ -68,11 +68,8 @@ const tokenReceivedBlock: BlockJson = {
 // TIME_PASSED trigger block
 const timePassedBlock: BlockJson = {
   type: 'TIME_PASSED',
-  message0: 'When time passed %1 days %2',
+  message0: 'When time passed %1 %2 %3',
   args0: [
-    {
-      type: 'input_dummy',
-    },
     {
       type: 'field_number',
       name: 'DAYS',
@@ -80,10 +77,18 @@ const timePassedBlock: BlockJson = {
       min: 1,
       precision: 1,
     },
+    {
+      type: 'field_dropdown',
+      name: 'UNIT',
+      options: [['days', 'DAYS'], ['hours', 'HOURS'], ['minutes', 'MINUTES']],
+    },
+    {
+      type: 'input_dummy',
+    },
   ],
   nextStatement: 'Action',
   colour: 120,
-  tooltip: 'Triggers after the specified number of days have passed',
+  tooltip: 'Triggers after the specified time has passed. Use minutes for quick testing.',
   helpUrl: '',
 };
 

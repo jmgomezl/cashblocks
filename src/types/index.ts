@@ -62,6 +62,9 @@ export interface BlockParams {
   // State params
   key?: string;
 
+  // Time unit for TIME_PASSED block (defaults to 'DAYS' for backwards compat)
+  timeUnit?: 'MINUTES' | 'HOURS' | 'DAYS';
+
   // IF_ELSE: resolved condition expression (set by parser, consumed by compiler)
   conditionExpr?: string;
 }
@@ -94,6 +97,8 @@ export interface ConstructorArg {
   name: string;
   type: 'bytes20' | 'int' | 'bytes' | 'pubkey' | 'sig';
   value?: string | bigint;
+  // Seconds from now for unlockTime auto-fill (set by TIME_PASSED template)
+  timeOffsetSeconds?: number;
 }
 
 // Result of compiling a block graph

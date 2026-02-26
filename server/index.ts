@@ -2,7 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { compileCashScript, validateCompileRequest } from './compile.js';
-import { deployToNetwork, getBalance, validateDeployRequest } from './deploy.js';
+import { deployToNetwork, getBalance, getProvider, validateDeployRequest } from './deploy.js';
 import {
   generateWallet,
   importFromWif,
@@ -97,6 +97,32 @@ app.get('/api/balance', async (req, res) => {
   }
 
   res.json({ balance: result.balance });
+});
+
+app.get('/api/utxos', async (req, res) => {
+  const address = req.query.address as string;
+  const networkName = req.query.network as string | undefined;
+  const network = resolveNetworkParam(networkName);
+
+  if (!address) {
+    res.status(400).json({ error: 'Address parameter required' });
+    return;
+  }
+
+  try {
+    const provider = getProvider(network);
+    const utxos = await provider.getUtxos(address);
+    res.json({
+      utxos: utxos.map((u: { txid: string; vout: number; satoshis: bigint }) => ({
+        txid: u.txid,
+        vout: u.vout,
+        satoshis: u.satoshis.toString(),
+      })),
+    });
+  } catch (err) {
+    const error = err as Error;
+    res.status(400).json({ error: `UTXO fetch error: ${error.message}` });
+  }
 });
 
 app.post('/api/fund', async (req, res) => {

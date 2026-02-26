@@ -3,6 +3,13 @@ import type { StoredDeployment } from '../services/deployments';
 import type { ConstructorArg } from '../types';
 import { interactWithContract } from '../services/interaction';
 
+async function fetchContractUtxos(address: string, network: string): Promise<{ txid: string; vout: number; satoshis: string }[]> {
+  const res = await fetch(`/api/utxos?address=${encodeURIComponent(address)}&network=${encodeURIComponent(network)}`);
+  const data = await res.json() as { utxos?: { txid: string; vout: number; satoshis: string }[]; error?: string };
+  if (data.error) throw new Error(data.error);
+  return data.utxos ?? [];
+}
+
 interface WalletInfo {
   address: string;
   cashAddress: string;
@@ -39,6 +46,7 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
   const [utxos, setUtxos] = useState<EditableUtxo[]>([{ txid: '', vout: '0', satoshis: '' }]);
   const [outputs, setOutputs] = useState<EditableOutput[]>([{ to: '', amount: '' }]);
   const [fee, setFee] = useState<string>('800');
+  const [fetchingUtxos, setFetchingUtxos] = useState<boolean>(false);
   const [status, setStatus] = useState<{ type: 'idle' | 'busy' | 'error' | 'success'; message?: string }>({ type: 'idle' });
   const [useWalletSigner, setUseWalletSigner] = useState<boolean>(true);
   const [customSigner, setCustomSigner] = useState<string>('');
@@ -84,6 +92,32 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
 
   const addOutput = () => setOutputs((prev) => [...prev, { to: '', amount: '' }]);
   const removeOutput = (index: number) => setOutputs((prev) => prev.filter((_, idx) => idx !== index));
+
+  const handleFetchUtxos = useCallback(async () => {
+    if (!selectedDeployment) return;
+    setFetchingUtxos(true);
+    try {
+      const fetched = await fetchContractUtxos(selectedDeployment.address, network);
+      if (fetched.length === 0) {
+        setStatus({ type: 'error', message: 'No UTXOs found for this contract. Fund it first.' });
+      } else {
+        setUtxos(fetched.map((u) => ({ txid: u.txid, vout: String(u.vout), satoshis: u.satoshis })));
+        // Auto-fill output: send (total - fee) to wallet address
+        if (wallet?.cashAddress) {
+          const totalSats = fetched.reduce((sum, u) => sum + Number(u.satoshis), 0);
+          const feeNum = Number(fee) || 800;
+          const sendAmount = Math.max(546, totalSats - feeNum);
+          setOutputs([{ to: wallet.cashAddress, amount: String(sendAmount) }]);
+        }
+        setStatus({ type: 'idle' });
+      }
+    } catch (err) {
+      const error = err as Error;
+      setStatus({ type: 'error', message: `Fetch failed: ${error.message}` });
+    } finally {
+      setFetchingUtxos(false);
+    }
+  }, [selectedDeployment, network, wallet, fee]);
 
   const handleInteract = async () => {
     if (!selectedDeployment) return;
@@ -226,7 +260,25 @@ export default function InteractionsPanel({ deployments, network, networkLabel, 
       ) : null}
 
       <section style={{ backgroundColor: '#252538', padding: '12px', borderRadius: '6px' }}>
-        <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px' }}>Contract UTXOs</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ fontSize: '12px', color: '#888' }}>Contract UTXOs</div>
+          <button
+            type="button"
+            onClick={handleFetchUtxos}
+            disabled={fetchingUtxos || !selectedDeployment}
+            style={{
+              padding: '4px 10px',
+              backgroundColor: fetchingUtxos ? '#333' : '#00d4aa22',
+              border: '1px solid #00d4aa55',
+              borderRadius: '4px',
+              color: fetchingUtxos ? '#666' : '#00d4aa',
+              fontSize: '11px',
+              cursor: fetchingUtxos ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {fetchingUtxos ? 'Fetching...' : '⟳ Fetch from chain'}
+          </button>
+        </div>
         {utxos.map((utxo, index) => (
           <div key={index} style={{ display: 'flex', flexDirection: 'column', marginBottom: '8px', gap: '4px' }}>
             <input

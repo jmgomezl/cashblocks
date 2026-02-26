@@ -65,7 +65,8 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
           value = wallet.address;
         }
         if (!value && arg.name === 'unlockTime') {
-          value = String(Math.floor(Date.now() / 1000) + 90 * 86400);
+          const offset = arg.timeOffsetSeconds ?? 90 * 86400;
+          value = String(Math.floor(Date.now() / 1000) + offset);
         }
 
         // Convert value to appropriate type
@@ -140,9 +141,10 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
 
   const getArgPlaceholder = (arg: ConstructorArg): string => {
     if (arg.name === 'unlockTime') {
-      const nowTs = Math.floor(Date.now() / 1000);
-      const in90d = nowTs + 90 * 86400;
-      return `Unix timestamp — now=${nowTs}, now+90d=${in90d}`;
+      const offset = arg.timeOffsetSeconds ?? 90 * 86400;
+      const targetTs = Math.floor(Date.now() / 1000) + offset;
+      const targetDate = new Date(targetTs * 1000).toLocaleString();
+      return `Unix timestamp — unlocks: ${targetDate}`;
     }
     if (arg.name === 'recipientHash' && wallet) {
       return `Default: ${wallet.address.slice(0, 20)}...`;
@@ -152,7 +154,8 @@ export default function DeployPanel({ compileResult, wallet, network, networkLab
 
   const getArgDefault = (arg: ConstructorArg): string => {
     if (arg.name === 'unlockTime' && !constructorValues[arg.name]) {
-      return String(Math.floor(Date.now() / 1000) + 90 * 86400);
+      const offset = arg.timeOffsetSeconds ?? 90 * 86400;
+      return String(Math.floor(Date.now() / 1000) + offset);
     }
     return constructorValues[arg.name] || '';
   };

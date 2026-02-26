@@ -292,6 +292,108 @@ const recurringSalaryExample = {
   },
 };
 
+// Quick Test examples — short timelocks for local testing on chipnet
+const quickInstantSendExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'BCH_RECEIVED',
+        id: 'trigger_qt1',
+        x: 50,
+        y: 50,
+        fields: { MIN_AMOUNT: 1000 },
+        next: {
+          block: {
+            type: 'SEND_BCH',
+            id: 'action_qt1',
+            fields: { RECIPIENT_HASH: '' },
+          },
+        },
+      },
+    ],
+  },
+};
+
+const quick2minLockExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'TIME_PASSED',
+        id: 'trigger_qt2',
+        x: 50,
+        y: 50,
+        fields: { DAYS: 2, UNIT: 'MINUTES' },
+        next: {
+          block: {
+            type: 'SEND_BCH',
+            id: 'action_qt2',
+            fields: { RECIPIENT_HASH: '' },
+          },
+        },
+      },
+    ],
+  },
+};
+
+const quick5minRecurringExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'TIME_PASSED',
+        id: 'trigger_qt3',
+        x: 50,
+        y: 50,
+        fields: { DAYS: 5, UNIT: 'MINUTES' },
+        next: {
+          block: {
+            type: 'SPLIT_PERCENT',
+            id: 'action_qt3a',
+            fields: { PERCENT: 20 },
+            next: {
+              block: {
+                type: 'SEND_BCH',
+                id: 'action_qt3b',
+                fields: { RECIPIENT_HASH: '' },
+                next: {
+                  block: {
+                    type: 'SEND_BACK',
+                    id: 'action_qt3c',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    ],
+  },
+};
+
+const quickMultisigExample = {
+  blocks: {
+    languageVersion: 0,
+    blocks: [
+      {
+        type: 'MULTISIG_SIGNED',
+        id: 'trigger_qt4',
+        x: 50,
+        y: 50,
+        fields: { REQUIRED: 2, TOTAL: 2 },
+        next: {
+          block: {
+            type: 'SEND_BCH',
+            id: 'action_qt4',
+            fields: { RECIPIENT_HASH: '' },
+          },
+        },
+      },
+    ],
+  },
+};
+
 interface ExampleOption {
   name: string;
   description: string;
@@ -304,6 +406,15 @@ interface ExampleGroup {
 }
 
 const exampleGroups: ExampleGroup[] = [
+  {
+    label: '⚡ Quick Test',
+    examples: [
+      { name: 'Instant Send', description: 'No timelock — deploy, fund & interact right away', state: quickInstantSendExample },
+      { name: '2-min Timelock', description: 'Unlocks 2 minutes after deploy — fast chipnet test', state: quick2minLockExample },
+      { name: '5-min Recurring', description: '20% every 5 min, rest re-locks — test the covenant loop', state: quick5minRecurringExample },
+      { name: 'Quick 2-of-2 Multisig', description: 'Both keys required — no waiting', state: quickMultisigExample },
+    ],
+  },
   {
     label: 'Standard',
     examples: [

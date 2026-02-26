@@ -102,6 +102,8 @@ function extractParams(block: Blockly.Block): BlockParams {
   } else if (type === 'TIME_PASSED') {
     const days = block.getFieldValue('DAYS') as number;
     params.days = BigInt(days);
+    const unit = (block.getFieldValue('UNIT') as string) || 'DAYS';
+    params.timeUnit = unit as 'MINUTES' | 'HOURS' | 'DAYS';
   } else if (type === 'MULTISIG_SIGNED') {
     const required = block.getFieldValue('REQUIRED') as number;
     const total = block.getFieldValue('TOTAL') as number;

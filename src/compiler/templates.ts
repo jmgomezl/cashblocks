@@ -39,14 +39,16 @@ function triggerTemplate(type: BlockType, params: BlockParams): TemplateResult {
     }
 
     case 'TIME_PASSED': {
-      const days = params.days ?? 30n;
+      const value = params.days ?? 30n;
+      const unit = params.timeUnit ?? 'DAYS';
+      const unitLabel = unit === 'MINUTES' ? 'minutes' : unit === 'HOURS' ? 'hours' : 'days';
+      const multiplier = unit === 'MINUTES' ? 60 : unit === 'HOURS' ? 3600 : 86400;
+      const timeOffsetSeconds = Number(value) * multiplier;
       return {
-        code: `        // TRIGGER: Time passed (${days} days)
-        // unlockTime must be an absolute Unix timestamp (seconds since epoch)
-        // e.g. Math.floor(Date.now() / 1000) + ${days.toString()} * 86400
+        code: `        // TRIGGER: Time passed (${value} ${unitLabel})
         require(tx.time >= unlockTime);`,
         constructorArgs: [
-          { name: 'unlockTime', type: 'int' },
+          { name: 'unlockTime', type: 'int', timeOffsetSeconds },
         ],
       };
     }
